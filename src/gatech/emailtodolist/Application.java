@@ -1,5 +1,9 @@
-package gatech.emailtodolist;
-
+import javax.mail.Folder;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.Store;
+import javax.mail.internet.MimeMessage;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -16,17 +20,21 @@ import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Properties;
 
 @SuppressWarnings("serial")
 public class Application extends JFrame{
 	private JTextField txtEmail;
 	private JPasswordField txtPassword;
-	private Settings settings;
+	private static Settings settings;
+	static ArrayList<ToDoList> toDoListArray = new ArrayList<ToDoList>();
 
 	/**
 	 * @param args
+	 * @throws Exception 
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		new Application();
 	}
 	
@@ -102,18 +110,83 @@ public class Application extends JFrame{
 				try
 				{
 					saveSettings();
-					tabbedPane.setSelectedComponent(pnlLists);
+					grabEmails();
+					tabbedPane.setSelectedComponent(pnlLists);					
 				}
 				catch(Exception e)
 				{
 					JOptionPane.showMessageDialog(getContentPane(), e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-
 				}
 			}
 		});
-		btnSaveSettings.setFont(new Font("Tahoma", Font.PLAIN, 24));
+		btnSaveSettings.setFont(new Font("Tahoma", Font.PLAIN, 24));		
 		pnlSettings.add(btnSaveSettings, "4, 12");
 		setVisible(true);
+	}
+	
+	private void grabEmails() throws Exception{
+		String host = "imap.gmail.com";
+		String user = settings.email();
+		String password = settings.plainTextPassword(); 
+
+		// Get system properties 
+		Properties properties = System.getProperties(); 
+
+		// Get the default Session object.
+		Session session = Session.getDefaultInstance(properties);
+
+		// Get a Store object that implements the specified protocol.
+		Store store = session.getStore("imaps");
+
+		//Connect to the current host using the specified username and password.
+		store.connect(host, user, password);
+
+		//Create a Folder object corresponding to the given name.
+		Folder folder = store.getFolder("inbox");
+
+		// Open the Folder.
+		folder.open(Folder.READ_ONLY);
+
+		Message[] messages = folder.getMessages();
+
+		// Display message.
+		for (int i = messages.length - 1; i > 0; i--) {
+			
+			String[] subjectContents;
+			
+			if (messages[i].getSubject() != null){
+				subjectContents = messages[i].getSubject().split(" ");
+				
+				if (subjectContents[0].equals("ToDo:")){
+					
+					String date = "" + messages[i].getSentDate();
+					String from = "" + messages[i].getFrom()[0];
+					String subject = "" + messages[i].getSubject();
+					String contents = "" + ((MimeMessage)messages[i]).getContent();
+					
+					ToDoList toDoList = new ToDoList(date, from, subject);
+					
+					String[] messageContents = contents.split("\n");
+					
+					for (int j = 0; j <= messageContents.length - 1; j++){
+						toDoList.toDoItems.add(messageContents[j]);
+					}
+					
+					toDoListArray.add(toDoList);					
+					
+//					System.out.println("------------ Message " + (i + 1) + " ------------");
+//					System.out.println("SentDate : " + messages[i].getSentDate());
+//					System.out.println("From : " + messages[i].getFrom()[0]);
+//					System.out.println("Subject : " + messages[i].getSubject());
+//					System.out.print("Message : \n" + ((MimeMessage)messages[i]).getContent());
+//		
+//					System.out.println();
+				}
+			}						
+		}
+
+		folder.close(true);
+		store.close();
 	}
 	
 	private void saveSettings() throws IOException, Exception
@@ -121,8 +194,8 @@ public class Application extends JFrame{
 		String email = txtEmail.getText();
 		char[] password = txtPassword.getPassword();
 		
-		if(email.length() == 0) throw new Exception("Nothing inputed for email address!");
-		if(password.length < 1) throw new Exception("Nothing inputed for password!");
+		if(email.length() == 0) throw new Exception("Please input an email address");
+		if(password.length < 1) throw new Exception("Please input a password");
 		
 		//TODO RegEx matching on email
 		

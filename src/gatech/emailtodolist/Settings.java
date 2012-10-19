@@ -1,5 +1,3 @@
-package gatech.emailtodolist;
-
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -13,6 +11,8 @@ public class Settings implements Serializable
 	private static final String SEED = "90210H@sh9897";
 	private String email;
 	private String password;
+	public boolean emailGiven = false;
+	public boolean passwordGiven = false;
 	
 	//ClassNotFoundException should never occur
 	public Settings() throws IOException, ClassNotFoundException
@@ -24,6 +24,8 @@ public class Settings implements Serializable
 	{
 		this.email = email;
 		this.password = SimpleCrypto.encrypt(SEED, new String(password));
+		emailGiven = true;
+		passwordGiven = true;
 	}
 	
 	public void email(String email)
