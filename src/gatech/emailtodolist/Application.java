@@ -331,13 +331,11 @@ public class Application extends JFrame{
 				public void mouseClicked(MouseEvent event)
 				{
 					ToDoList data = toDoListArray.get(i);
-					String output = "<h1>" + data.sender + "</h1><h2>" + data.title + "</h2>" +
-							"<ol>";
+					String output = "<h1>" + data.sender + "</h1><h2>" + data.title + "</h2>";
 					for( String li : data.toDoItems )
 					{
-						output += "<li>" + li + "</li>";
+						output += li + "<br/>";
 					}
-					output += "</ol>";
 					dtrToDo.setText(output);
 					rdoHelp.setEnabled(true);
 					rdoWorking.setEnabled(true);
