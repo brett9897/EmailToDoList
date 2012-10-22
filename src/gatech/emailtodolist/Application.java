@@ -52,9 +52,12 @@ public class Application extends JFrame{
 	private static JRadioButton rdoDone = new JRadioButton("Done");
 	private static JRadioButton rdoWorking = new JRadioButton("Working on it");
 	private static JRadioButton rdoHelp = new JRadioButton("Need help");
+	private static JRadioButton rdoNoDecision = new JRadioButton("No descision");
 	private static JButton btnSubmit = new JButton("Submit");
 	static ArrayList<ToDoList> toDoListArray = new ArrayList<ToDoList>();
 	static ArrayList<JTextPane> visualTodos = new ArrayList<JTextPane>();
+	private static ArrayList<TaskInfo> taskInfos = new ArrayList<TaskInfo>();
+	private static int currentlyActive;
 	
 	/**
 	 * @param args
@@ -67,11 +70,11 @@ public class Application extends JFrame{
 	public Application()
 	{
 		setTitle("E-ToDo");
-		this.setSize(720, 470);
+		this.setSize(760, 470);
 		getContentPane().setLayout(null);
 		
 		final JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-		tabbedPane.setBounds(10, 11, 684, 409);
+		tabbedPane.setBounds(10, 11, 724, 409);
 		getContentPane().add(tabbedPane);
 		
 		final JPanel pnlLists = new JPanel();
@@ -129,12 +132,79 @@ public class Application extends JFrame{
 		
 		rdoHelp.setEnabled(false);
 		buttonGroup.add(rdoHelp);
-		rdoHelp.setBounds(406, 347, 109, 23);
+		rdoHelp.setBounds(399, 347, 100, 23);
 		pnlLists.add(rdoHelp);
+		btnSubmit.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				//get current ToDoList item
+				ToDoList tdl = toDoListArray.get(currentlyActive);
+				
+				//Figure out if a taskInfo already exists for the todo list
+				int index = -1;
+				if( taskInfos.size() != 0 )
+				{
+					int i = 0;
+					for( TaskInfo ti : taskInfos )
+					{
+						if( ti.getToDoList().equals(tdl))
+						{
+							index = i;
+						}
+						i++;
+					}
+				}
+				
+				TaskInfo ti;
+				if( index >= 0 ) //TaskInfo already exists
+				{
+					ti = taskInfos.get(index);
+				}
+				else
+				{
+					ti = new TaskInfo(tdl);
+					index = taskInfos.size();
+					taskInfos.add(ti);
+				}
+				
+				//work with radio boxes
+				if(rdoDone.isSelected())
+				{
+					ti.isBeingWorkedOn(false);
+					ti.isDone(true);
+					ti.needsHelp(false);
+				}
+				else if(rdoWorking.isSelected())
+				{
+					ti.isBeingWorkedOn(true);
+					ti.isDone(false);
+					ti.needsHelp(false);
+				}
+				else if( rdoHelp.isSelected() )
+				{
+					ti.isBeingWorkedOn(false);
+					ti.isDone(false);
+					ti.needsHelp(true);
+				}
+				else
+				{
+					ti.isBeingWorkedOn(false);
+					ti.isDone(false);
+					ti.needsHelp(false);
+				}
+				
+				taskInfos.set(index, ti);
+				saveTaskInfo();
+			}
+		});
 		
 		btnSubmit.setEnabled(false);
-		btnSubmit.setBounds(550, 347, 89, 23);
+		btnSubmit.setBounds(620, 347, 89, 23);
 		pnlLists.add(btnSubmit);
+		
+		buttonGroup.add(rdoNoDecision);
+		rdoNoDecision.setEnabled(false);
+		rdoNoDecision.setBounds(501, 347, 113, 23);
+		pnlLists.add(rdoNoDecision);
 		
 		JPanel pnlSettings = new JPanel();
 		tabbedPane.addTab("Settings", null, pnlSettings, null);
@@ -196,6 +266,7 @@ public class Application extends JFrame{
 					grabEmails();
 					populateVisualTodos();
 					drawTodos(pnlTodos, btnRefresh);
+					dtrToDo.setText("<h3>No ToDo selected</h3>"); 
 					tabbedPane.setSelectedComponent(pnlLists);					
 				}
 				catch(Exception e)
@@ -218,10 +289,11 @@ public class Application extends JFrame{
 			} 
 			catch (Exception e) 
 			{
-				JOptionPane.showMessageDialog(getContentPane(), e.getMessage(), "Error fetching emails!", JOptionPane.ERROR_MESSAGE);
+				//JOptionPane.showMessageDialog(getContentPane(), e.getMessage(), "Error fetching emails!", JOptionPane.ERROR_MESSAGE);
 			}
 		}
 		
+		loadTaskInfo();
 		setVisible(true);
 	}
 	
@@ -259,7 +331,7 @@ public class Application extends JFrame{
 			if (messages[i].getSubject() != null){
 				subjectContents = messages[i].getSubject().split(" ");
 				
-				if (subjectContents[0].equals("ToDo:")){
+				if (subjectContents[0].compareToIgnoreCase("ToDo:") == 0){
 					
 					String date = "" + messages[i].getSentDate();
 					String from = "" + messages[i].getFrom()[0];
@@ -289,6 +361,39 @@ public class Application extends JFrame{
 
 		folder.close(true);
 		store.close();
+	}
+	
+	private void saveTaskInfo()
+	{
+		TaskInfoArray tia = new TaskInfoArray();
+		for( TaskInfo ti : taskInfos )
+		{
+			tia.addEntry(ti);
+		}
+		
+		try
+		{
+			tia.save();
+		}
+		catch(IOException e)
+		{
+			JOptionPane.showMessageDialog(getContentPane(), e.getMessage(), "Error saving task info!", JOptionPane.ERROR_MESSAGE);
+			e.printStackTrace();
+		}
+	}
+	
+	private void loadTaskInfo()
+	{
+		TaskInfoArray tia = new TaskInfoArray();
+		try
+		{
+			taskInfos = tia.load();
+		}
+		catch(Exception e)
+		{
+			JOptionPane.showMessageDialog(getContentPane(), e.getMessage(), "Error fetching task info!", JOptionPane.ERROR_MESSAGE);
+			e.printStackTrace();
+		}
 	}
 	
 	private void populateVisualTodos()
@@ -339,9 +444,56 @@ public class Application extends JFrame{
 					dtrToDo.setText(output);
 					rdoHelp.setEnabled(true);
 					rdoWorking.setEnabled(true);
-					rdoWorking.setSelected(true);
 					rdoDone.setEnabled(true);
+					rdoNoDecision.setEnabled(true);
 					btnSubmit.setEnabled(true);
+					
+					//try to find taskInfo for this toDoList
+					int index = -1;
+					if( taskInfos.size() > 0 )
+					{
+						int i = 0;
+						for( TaskInfo ti : taskInfos )
+						{
+							if( ti.getToDoList().equals(data) )
+							{
+								index = i;
+							}
+							i++;
+						}
+					}
+					
+					if( index >= 0 )
+					{
+						TaskInfo ti = taskInfos.get(index);
+						if( ti.isBeingWorkedOn() )
+						{
+							rdoWorking.setSelected(true);
+						}
+						else if( ti.isDone() )
+						{
+							rdoDone.setSelected(true);
+						}
+						else if( ti.needsHelp() )
+						{
+							rdoHelp.setSelected(true);
+						}
+						else
+						{
+							rdoWorking.setSelected(false);
+							rdoDone.setSelected(false);
+							rdoHelp.setSelected(false);
+							rdoNoDecision.setSelected(true);
+						}
+					}
+					else
+					{
+						rdoWorking.setSelected(false);
+						rdoDone.setSelected(false);
+						rdoHelp.setSelected(false);
+						rdoNoDecision.setSelected(true);
+					}
+					currentlyActive = i;
 				}
 			});
 			pnlTodos.add(todo);
