@@ -1,3 +1,5 @@
+package gatech.emailtodolist;
+
 import java.security.SecureRandom;
 
 import javax.crypto.Cipher;

@@ -1,3 +1,5 @@
+package gatech.emailtodolist;
+
 import java.util.ArrayList;
 
 public class ToDoList {
